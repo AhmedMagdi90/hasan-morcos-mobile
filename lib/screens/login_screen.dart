@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/api_config.dart';
 import '../models/customer_session.dart';
 import '../services/api_client.dart';
 
@@ -96,6 +97,15 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 8),
           const Text('Demo mode returns OTP in the API response until SMS provider is connected.'),
+          const SizedBox(height: 8),
+          Text(
+            'Server: ${ApiConfig.baseUrl}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const Text(
+            'Build: 0.1.1+2',
+            style: TextStyle(fontSize: 12),
+          ),
           const SizedBox(height: 24),
           TextField(
             controller: nameController,
