@@ -22,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController otpController = TextEditingController();
+  final TextEditingController serverController = TextEditingController(text: ApiConfig.baseUrl);
   String? devOtp;
   bool otpRequested = false;
   bool isSubmitting = false;
@@ -31,7 +32,24 @@ class _LoginScreenState extends State<LoginScreen> {
     nameController.dispose();
     phoneController.dispose();
     otpController.dispose();
+    serverController.dispose();
     super.dispose();
+  }
+
+  Future<void> saveServerUrl() async {
+    final value = serverController.text.trim();
+
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+      showMessage('Server must start with http:// or https://');
+      return;
+    }
+
+    await ApiConfig.saveBaseUrl(value);
+
+    if (mounted) {
+      setState(() {});
+      showMessage('Server URL saved.');
+    }
   }
 
   Future<void> requestOtp() async {
@@ -103,8 +121,31 @@ class _LoginScreenState extends State<LoginScreen> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const Text(
-            'Build: 0.1.1+2',
+            'Build: 0.1.2+3',
             style: TextStyle(fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('Connection settings'),
+            children: [
+              TextField(
+                controller: serverController,
+                decoration: const InputDecoration(
+                  labelText: 'Server URL',
+                  helperText: 'Example: http://192.168.1.47:8000',
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton(
+                  onPressed: isSubmitting ? null : saveServerUrl,
+                  child: const Text('Save Server'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           TextField(

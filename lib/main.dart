@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'config/api_config.dart';
 import 'models/branch.dart';
 import 'models/cart_item.dart';
 import 'models/customer_session.dart';
@@ -11,7 +12,9 @@ import 'screens/order_detail_screen.dart';
 import 'screens/product_list_screen.dart';
 import 'services/api_client.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiConfig.load();
   runApp(const HasanMorcosMobileApp());
 }
 
