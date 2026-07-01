@@ -173,7 +173,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Status: ${order.status}', style: Theme.of(context).textTheme.titleMedium),
+                      Text('Status: ${order.statusLabel}', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       Text('Total: ${order.total.toStringAsFixed(2)} EGP'),
                       Text('Paid: ${order.paidAmount.toStringAsFixed(2)} EGP'),
@@ -207,7 +207,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       if (order.shipment == null) ...[
                         const Text('Shipment is not created yet. Staff will send the order to shipment after payment confirmation.'),
                       ] else ...[
-                        Text('Status: ${order.shipment!.status}'),
+                        Text('Status: ${order.shipment!.statusLabel}'),
                         Text('Courier: ${order.shipment!.courierName.isEmpty ? '-' : order.shipment!.courierName}'),
                         Text('Tracking: ${order.shipment!.trackingNumber.isEmpty ? '-' : order.shipment!.trackingNumber}'),
                       ],

@@ -17,6 +17,8 @@ class OrderSummary {
   final double remainingAmount;
   final String createdAt;
 
+  String get statusLabel => orderStatusLabel(status);
+
   factory OrderSummary.fromJson(Map<String, dynamic> json) {
     final branch = json['branch'] as Map<String, dynamic>? ?? {};
 
@@ -29,5 +31,39 @@ class OrderSummary {
       remainingAmount: double.tryParse(json['remaining_amount']?.toString() ?? '0') ?? 0,
       createdAt: json['created_at']?.toString() ?? '',
     );
+  }
+}
+
+String orderStatusLabel(String status) {
+  switch (status) {
+    case 'reserved':
+      return 'Reserved - waiting for payment';
+    case 'deposit_pending':
+      return 'Payment submitted - waiting for staff confirmation';
+    case 'deposit_confirmed':
+      return 'Deposit confirmed';
+    case 'fully_paid':
+      return 'Fully paid';
+    case 'sent_to_shipment':
+      return 'Sent to shipment';
+    case 'delivered':
+      return 'Delivered';
+    case 'cancelled':
+      return 'Cancelled';
+    default:
+      return status.isEmpty ? 'Unknown' : status;
+  }
+}
+
+String shipmentStatusLabel(String status) {
+  switch (status) {
+    case 'pending':
+      return 'Preparing shipment';
+    case 'shipped':
+      return 'Shipped';
+    case 'delivered':
+      return 'Delivered';
+    default:
+      return status.isEmpty ? 'Not started' : status;
   }
 }

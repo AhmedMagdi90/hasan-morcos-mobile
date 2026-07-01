@@ -1,3 +1,5 @@
+import 'order_summary.dart';
+
 class OrderDetail {
   const OrderDetail({
     required this.orderId,
@@ -18,6 +20,8 @@ class OrderDetail {
   final String paymentReference;
   final String paymentProofUrl;
   final ShipmentDetail? shipment;
+
+  String get statusLabel => orderStatusLabel(status);
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
     return OrderDetail(
@@ -47,6 +51,8 @@ class ShipmentDetail {
   final String trackingNumber;
   final String courierName;
   final String createdAt;
+
+  String get statusLabel => shipmentStatusLabel(status);
 
   factory ShipmentDetail.fromJson(Map<String, dynamic> json) {
     return ShipmentDetail(

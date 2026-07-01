@@ -86,7 +86,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 return Card(
                   child: ListTile(
                     title: Text('ORDER-${order.orderId}'),
-                    subtitle: Text('${order.branchName} - ${order.status}'),
+                    subtitle: Text('${order.branchName} - ${order.statusLabel}'),
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.end,
