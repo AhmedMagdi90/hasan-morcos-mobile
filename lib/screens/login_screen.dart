@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? devOtp;
   bool otpRequested = false;
   bool isSubmitting = false;
+  bool isTestingConnection = false;
 
   @override
   void dispose() {
@@ -36,12 +37,12 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> saveServerUrl() async {
+  Future<bool> saveServerUrl() async {
     final value = serverController.text.trim();
 
     if (!value.startsWith('http://') && !value.startsWith('https://')) {
       showMessage('Server must start with http:// or https://');
-      return;
+      return false;
     }
 
     await ApiConfig.saveBaseUrl(value);
@@ -49,6 +50,29 @@ class _LoginScreenState extends State<LoginScreen> {
     if (mounted) {
       setState(() {});
       showMessage('Server URL saved.');
+    }
+
+    return true;
+  }
+
+  Future<void> testConnection() async {
+    final saved = await saveServerUrl();
+
+    if (!saved) {
+      return;
+    }
+
+    setState(() => isTestingConnection = true);
+
+    try {
+      await widget.apiClient.testConnection();
+      showMessage('Connection OK.');
+    } catch (error) {
+      showMessage(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() => isTestingConnection = false);
+      }
     }
   }
 
@@ -121,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const Text(
-            'Build: 0.1.2+3',
+            'Build: 0.1.3+4',
             style: TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 12),
@@ -138,12 +162,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.url,
               ),
               const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton(
-                  onPressed: isSubmitting ? null : saveServerUrl,
-                  child: const Text('Save Server'),
-                ),
+              Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: isSubmitting ? null : () => saveServerUrl(),
+                    child: const Text('Save Server'),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: isSubmitting || isTestingConnection ? null : testConnection,
+                    child: Text(isTestingConnection ? 'Testing...' : 'Test Connection'),
+                  ),
+                ],
               ),
             ],
           ),

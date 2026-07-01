@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -14,12 +15,19 @@ import '../models/product.dart';
 class ApiClient {
   const ApiClient();
 
+  static const Duration requestTimeout = Duration(seconds: 12);
+
   Uri _uri(String path, [Map<String, String>? queryParameters]) {
     return Uri.parse('${ApiConfig.baseUrl}$path').replace(queryParameters: queryParameters);
   }
 
+  Future<void> testConnection() async {
+    final response = await _get('/orders/api/branches/');
+    _decode(response);
+  }
+
   Future<List<Branch>> fetchBranches() async {
-    final response = await http.get(_uri('/orders/api/branches/'));
+    final response = await _get('/orders/api/branches/');
     final data = _decode(response);
     final branches = data['branches'] as List<dynamic>? ?? [];
     return branches.map((item) => Branch.fromJson(item as Map<String, dynamic>)).toList();
@@ -29,8 +37,8 @@ class ApiClient {
     required String name,
     required String phone,
   }) async {
-    final response = await http.post(
-      _uri('/orders/api/auth/request-otp/'),
+    final response = await _post(
+      '/orders/api/auth/request-otp/',
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'name': name,
@@ -45,8 +53,8 @@ class ApiClient {
     required String phone,
     required String otpCode,
   }) async {
-    final response = await http.post(
-      _uri('/orders/api/auth/verify-otp/'),
+    final response = await _post(
+      '/orders/api/auth/verify-otp/',
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'phone': phone,
@@ -57,10 +65,10 @@ class ApiClient {
   }
 
   Future<List<Product>> fetchProducts(int branchId, {String query = ''}) async {
-    final response = await http.get(_uri('/orders/api/products/', {
+    final response = await _get('/orders/api/products/', queryParameters: {
       'branch': branchId.toString(),
       if (query.trim().isNotEmpty) 'q': query.trim(),
-    }));
+    });
     final data = _decode(response);
     final products = data['products'] as List<dynamic>? ?? [];
     return products.map((item) => Product.fromJson(item as Map<String, dynamic>)).toList();
@@ -74,8 +82,8 @@ class ApiClient {
     required List<CartItem> items,
     String? authToken,
   }) async {
-    final response = await http.post(
-      _uri('/orders/api/orders/'),
+    final response = await _post(
+      '/orders/api/orders/',
       headers: {
         'Content-Type': 'application/json',
         if (authToken != null && authToken.isNotEmpty) 'Authorization': 'Bearer $authToken',
@@ -97,8 +105,8 @@ class ApiClient {
   }
 
   Future<List<OrderSummary>> fetchMyOrders(String authToken) async {
-    final response = await http.get(
-      _uri('/orders/api/my/orders/'),
+    final response = await _get(
+      '/orders/api/my/orders/',
       headers: {'Authorization': 'Bearer $authToken'},
     );
     final data = _decode(response);
@@ -107,8 +115,8 @@ class ApiClient {
   }
 
   Future<List<CustomerNotification>> fetchMyNotifications(String authToken) async {
-    final response = await http.get(
-      _uri('/orders/api/my/notifications/'),
+    final response = await _get(
+      '/orders/api/my/notifications/',
       headers: {'Authorization': 'Bearer $authToken'},
     );
     final data = _decode(response);
@@ -120,16 +128,16 @@ class ApiClient {
     required String authToken,
     required int notificationId,
   }) async {
-    final response = await http.post(
-      _uri('/orders/api/my/notifications/$notificationId/read/'),
+    final response = await _post(
+      '/orders/api/my/notifications/$notificationId/read/',
       headers: {'Authorization': 'Bearer $authToken'},
     );
     _decode(response);
   }
 
   Future<OrderDetail> fetchOrder(int orderId, {String? authToken}) async {
-    final response = await http.get(
-      _uri('/orders/api/orders/$orderId/'),
+    final response = await _get(
+      '/orders/api/orders/$orderId/',
       headers: {
         if (authToken != null && authToken.isNotEmpty) 'Authorization': 'Bearer $authToken',
       },
@@ -145,8 +153,8 @@ class ApiClient {
     String? paymentProofBase64,
     String? paymentProofFilename,
   }) async {
-    final response = await http.post(
-      _uri('/orders/api/orders/$orderId/payment/'),
+    final response = await _post(
+      '/orders/api/orders/$orderId/payment/',
       headers: {
         'Content-Type': 'application/json',
         if (authToken != null && authToken.isNotEmpty) 'Authorization': 'Bearer $authToken',
@@ -162,14 +170,52 @@ class ApiClient {
     return fetchOrder(orderId, authToken: authToken);
   }
 
+  Future<http.Response> _get(
+    String path, {
+    Map<String, String>? headers,
+    Map<String, String>? queryParameters,
+  }) async {
+    try {
+      return await http.get(_uri(path, queryParameters), headers: headers).timeout(requestTimeout);
+    } on TimeoutException {
+      throw ApiException('Server timeout. Check that the portal is open and phone is on the same Wi-Fi.');
+    } catch (error) {
+      throw ApiException(_connectionErrorMessage(error));
+    }
+  }
+
+  Future<http.Response> _post(
+    String path, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
+    try {
+      return await http.post(_uri(path), headers: headers, body: body).timeout(requestTimeout);
+    } on TimeoutException {
+      throw ApiException('Server timeout. Check that the portal is open and phone is on the same Wi-Fi.');
+    } catch (error) {
+      throw ApiException(_connectionErrorMessage(error));
+    }
+  }
+
   Map<String, dynamic> _decode(http.Response response) {
-    final data = jsonDecode(response.body.isEmpty ? '{}' : response.body) as Map<String, dynamic>;
+    final Map<String, dynamic> data;
+
+    try {
+      data = jsonDecode(response.body.isEmpty ? '{}' : response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw ApiException('Server returned an invalid response. Check that Server URL points to the ERP backend.');
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(data['error']?.toString() ?? 'Request failed');
     }
 
     return data;
+  }
+
+  String _connectionErrorMessage(Object error) {
+    return 'Cannot connect to ${ApiConfig.baseUrl}. Open the ERP portal, keep this phone on the same Wi-Fi, and allow Windows Firewall for port 8000.';
   }
 }
 
