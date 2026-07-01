@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config/api_config.dart';
 import 'models/branch.dart';
@@ -42,13 +45,71 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  static const String savedCustomerSessionKey = 'customer_session_v1';
+
   final ApiClient apiClient = const ApiClient();
   final List<CartItem> cartItems = [];
+  bool isLoadingSession = true;
   CustomerSession? customerSession;
   Branch? selectedBranch;
   int? lastOrderId;
 
   double get cartTotal => cartItems.fold(0, (total, item) => total + item.lineTotal);
+
+  @override
+  void initState() {
+    super.initState();
+    loadSavedSession();
+  }
+
+  Future<void> loadSavedSession() async {
+    CustomerSession? savedSession;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final rawSession = prefs.getString(savedCustomerSessionKey);
+
+      if (rawSession != null && rawSession.isNotEmpty) {
+        final decoded = jsonDecode(rawSession);
+
+        if (decoded is Map<String, dynamic>) {
+          final parsedSession = CustomerSession.fromJson(decoded);
+          if (parsedSession.isValid) {
+            savedSession = parsedSession;
+          }
+        }
+      }
+    } catch (error) {
+      debugPrint('Cannot load saved customer session: $error');
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      customerSession = savedSession;
+      isLoadingSession = false;
+    });
+  }
+
+  Future<void> saveCustomerSession(CustomerSession session) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(savedCustomerSessionKey, jsonEncode(session.toJson()));
+    } catch (error) {
+      debugPrint('Cannot save customer session: $error');
+    }
+  }
+
+  Future<void> clearSavedCustomerSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(savedCustomerSessionKey);
+    } catch (error) {
+      debugPrint('Cannot clear customer session: $error');
+    }
+  }
 
   void selectBranch(Branch branch) {
     setState(() {
@@ -59,12 +120,16 @@ class _AppShellState extends State<AppShell> {
   }
 
   void login(CustomerSession session) {
+    saveCustomerSession(session);
+
     setState(() {
       customerSession = session;
     });
   }
 
   void logout() {
+    clearSavedCustomerSession();
+
     setState(() {
       customerSession = null;
       selectedBranch = null;
@@ -135,6 +200,12 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoadingSession) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     if (customerSession == null) {
       return LoginScreen(
         apiClient: apiClient,

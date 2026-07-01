@@ -11,6 +11,19 @@ class CustomerSession {
   final String name;
   final String phone;
 
+  bool get isValid => authToken.isNotEmpty && phone.isNotEmpty;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'auth_token': authToken,
+      'customer': {
+        'id': customerId,
+        'name': name,
+        'phone': phone,
+      },
+    };
+  }
+
   factory CustomerSession.fromJson(Map<String, dynamic> json) {
     final customer = json['customer'] as Map<String, dynamic>? ?? {};
 
