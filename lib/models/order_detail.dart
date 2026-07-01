@@ -9,6 +9,7 @@ class OrderDetail {
     required this.remainingAmount,
     required this.paymentReference,
     required this.paymentProofUrl,
+    required this.items,
     this.shipment,
   });
 
@@ -19,6 +20,7 @@ class OrderDetail {
   final double remainingAmount;
   final String paymentReference;
   final String paymentProofUrl;
+  final List<OrderDetailItem> items;
   final ShipmentDetail? shipment;
 
   String get statusLabel => orderStatusLabel(status);
@@ -32,9 +34,43 @@ class OrderDetail {
       remainingAmount: double.tryParse(json['remaining_amount']?.toString() ?? '0') ?? 0,
       paymentReference: json['payment_reference']?.toString() ?? '',
       paymentProofUrl: json['payment_proof_url']?.toString() ?? '',
+      items: (json['items'] as List<dynamic>? ?? [])
+          .map((item) => OrderDetailItem.fromJson(item as Map<String, dynamic>))
+          .toList(),
       shipment: json['shipment'] == null
           ? null
           : ShipmentDetail.fromJson(json['shipment'] as Map<String, dynamic>),
+    );
+  }
+}
+
+class OrderDetailItem {
+  const OrderDetailItem({
+    required this.variantId,
+    required this.nameAr,
+    required this.variantSku,
+    required this.quantity,
+    required this.unitPrice,
+    required this.lineTotal,
+  });
+
+  final int variantId;
+  final String nameAr;
+  final String variantSku;
+  final int quantity;
+  final double unitPrice;
+  final double lineTotal;
+
+  String get displayName => nameAr.isEmpty ? variantSku : nameAr;
+
+  factory OrderDetailItem.fromJson(Map<String, dynamic> json) {
+    return OrderDetailItem(
+      variantId: json['variant_id'] as int? ?? 0,
+      nameAr: json['name_ar']?.toString() ?? '',
+      variantSku: json['variant_sku']?.toString() ?? '',
+      quantity: json['quantity'] as int? ?? 0,
+      unitPrice: double.tryParse(json['unit_price']?.toString() ?? '0') ?? 0,
+      lineTotal: double.tryParse(json['line_total']?.toString() ?? '0') ?? 0,
     );
   }
 }

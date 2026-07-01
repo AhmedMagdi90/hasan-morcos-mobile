@@ -145,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const Text(
-            'Build: 0.1.6+7',
+            'Build: 0.1.7+8',
             style: TextStyle(fontSize: 12),
           ),
           const SizedBox(height: 12),

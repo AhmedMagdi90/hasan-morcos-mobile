@@ -202,6 +202,49 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text('Items', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      if (order.items.isEmpty)
+                        const Text('No items found for this order.')
+                      else
+                        ...order.items.map((item) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(item.displayName),
+                                      if (item.variantSku.isNotEmpty)
+                                        Text(
+                                          item.variantSku,
+                                          style: Theme.of(context).textTheme.bodySmall,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text('x${item.quantity}'),
+                                const SizedBox(width: 12),
+                                Text('${item.lineTotal.toStringAsFixed(2)} EGP'),
+                              ],
+                            ),
+                          );
+                        }),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text('Delivery Tracking', style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       if (order.shipment == null) ...[
