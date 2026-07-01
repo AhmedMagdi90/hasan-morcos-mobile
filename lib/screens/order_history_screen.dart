@@ -46,6 +46,26 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     );
   }
 
+  Color statusColor(OrderSummary order) {
+    switch (order.status) {
+      case 'reserved':
+        return Colors.blue;
+      case 'deposit_pending':
+        return Colors.orange;
+      case 'deposit_confirmed':
+      case 'fully_paid':
+        return Colors.green;
+      case 'sent_to_shipment':
+        return Colors.purple;
+      case 'delivered':
+        return Colors.teal;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,21 +102,61 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
               padding: const EdgeInsets.all(16),
               itemBuilder: (context, index) {
                 final order = orders[index];
+                final color = statusColor(order);
 
                 return Card(
-                  child: ListTile(
-                    title: Text('ORDER-${order.orderId}'),
-                    subtitle: Text('${order.branchName} - ${order.statusLabel}'),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('${order.total.toStringAsFixed(2)} EGP'),
-                        if (order.remainingAmount > 0)
-                          Text('Remaining ${order.remainingAmount.toStringAsFixed(2)}'),
-                      ],
-                    ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
                     onTap: () => openOrder(order),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'ORDER-${order.orderId}',
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(order.branchName),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Chip(
+                            label: Text(order.statusLabel),
+                            backgroundColor: color.withOpacity(0.12),
+                            side: BorderSide(color: color.withOpacity(0.35)),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(child: Text('Total: ${order.total.toStringAsFixed(2)} EGP')),
+                              Expanded(child: Text('Paid: ${order.paidAmount.toStringAsFixed(2)} EGP')),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              order.remainingAmount > 0
+                                  ? 'Remaining: ${order.remainingAmount.toStringAsFixed(2)} EGP'
+                                  : 'No remaining payment',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 );
               },
