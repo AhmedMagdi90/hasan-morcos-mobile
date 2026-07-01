@@ -35,6 +35,8 @@ class _CartScreenState extends State<CartScreen> {
   final TextEditingController addressController = TextEditingController();
   bool isSubmitting = false;
 
+  double get cartTotal => widget.cartItems.fold(0, (total, item) => total + item.lineTotal);
+
   @override
   void dispose() {
     nameController.dispose();
@@ -116,7 +118,7 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                         Text(item.quantity.toString()),
                         IconButton(
-                          onPressed: () => changeQuantity(item, item.quantity + 1),
+                          onPressed: item.quantity < item.product.availableQuantity ? () => changeQuantity(item, item.quantity + 1) : null,
                           icon: const Icon(Icons.add),
                         ),
                       ],
@@ -127,7 +129,7 @@ class _CartScreenState extends State<CartScreen> {
             }),
           const SizedBox(height: 16),
           Text(
-            'Total: ${widget.cartTotal.toStringAsFixed(2)} EGP',
+            'Total: ${cartTotal.toStringAsFixed(2)} EGP',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 24),
