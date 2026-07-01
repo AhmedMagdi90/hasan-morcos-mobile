@@ -34,8 +34,8 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     });
   }
 
-  void openOrder(OrderSummary order) {
-    Navigator.of(context).push(
+  Future<void> openOrder(OrderSummary order) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OrderDetailScreen(
           apiClient: widget.apiClient,
@@ -44,6 +44,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
         ),
       ),
     );
+
+    if (mounted) {
+      refresh();
+    }
   }
 
   Color statusColor(OrderSummary order) {
