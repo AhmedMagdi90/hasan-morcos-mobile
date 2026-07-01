@@ -46,6 +46,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   static const String savedCustomerSessionKey = 'customer_session_v1';
+  static const String savedBranchKey = 'selected_branch_v1';
 
   final ApiClient apiClient = const ApiClient();
   final List<CartItem> cartItems = [];
@@ -64,10 +65,12 @@ class _AppShellState extends State<AppShell> {
 
   Future<void> loadSavedSession() async {
     CustomerSession? savedSession;
+    Branch? savedBranch;
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final rawSession = prefs.getString(savedCustomerSessionKey);
+      final rawBranch = prefs.getString(savedBranchKey);
 
       if (rawSession != null && rawSession.isNotEmpty) {
         final decoded = jsonDecode(rawSession);
@@ -79,8 +82,19 @@ class _AppShellState extends State<AppShell> {
           }
         }
       }
+
+      if (savedSession != null && rawBranch != null && rawBranch.isNotEmpty) {
+        final decoded = jsonDecode(rawBranch);
+
+        if (decoded is Map<String, dynamic>) {
+          final parsedBranch = Branch.fromJson(decoded);
+          if (parsedBranch.isValid) {
+            savedBranch = parsedBranch;
+          }
+        }
+      }
     } catch (error) {
-      debugPrint('Cannot load saved customer session: $error');
+      debugPrint('Cannot load saved app session: $error');
     }
 
     if (!mounted) {
@@ -89,6 +103,7 @@ class _AppShellState extends State<AppShell> {
 
     setState(() {
       customerSession = savedSession;
+      selectedBranch = savedBranch;
       isLoadingSession = false;
     });
   }
@@ -102,18 +117,49 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
+  Future<void> saveSelectedBranch(Branch branch) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(savedBranchKey, jsonEncode(branch.toJson()));
+    } catch (error) {
+      debugPrint('Cannot save selected branch: $error');
+    }
+  }
+
+  Future<void> clearSavedBranch() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(savedBranchKey);
+    } catch (error) {
+      debugPrint('Cannot clear selected branch: $error');
+    }
+  }
+
   Future<void> clearSavedCustomerSession() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(savedCustomerSessionKey);
+      await prefs.remove(savedBranchKey);
     } catch (error) {
       debugPrint('Cannot clear customer session: $error');
     }
   }
 
   void selectBranch(Branch branch) {
+    saveSelectedBranch(branch);
+
     setState(() {
       selectedBranch = branch;
+      cartItems.clear();
+      lastOrderId = null;
+    });
+  }
+
+  void changeBranch() {
+    clearSavedBranch();
+
+    setState(() {
+      selectedBranch = null;
       cartItems.clear();
       lastOrderId = null;
     });
@@ -228,7 +274,7 @@ class _AppShellState extends State<AppShell> {
       cartTotal: cartTotal,
       lastOrderId: lastOrderId,
       customerSession: customerSession!,
-      onBranchChange: () => setState(() => selectedBranch = null),
+      onBranchChange: changeBranch,
       onLogout: logout,
       onAddToCart: addToCart,
       onOpenCart: openCart,
