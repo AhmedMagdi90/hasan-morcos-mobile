@@ -85,6 +85,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> refreshOrder() async {
+    setState(() {
+      orderFuture = widget.apiClient.fetchOrder(widget.orderId, authToken: widget.authToken);
+      amountPrefilled = false;
+    });
+
+    await orderFuture;
+  }
+
   Future<void> pickPaymentProof() async {
     final pickedFile = await imagePicker.pickImage(
       source: ImageSource.gallery,
@@ -148,7 +157,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Order ${widget.orderId}')),
+      appBar: AppBar(
+        title: Text('Order ${widget.orderId}'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+            onPressed: refreshOrder,
+          ),
+        ],
+      ),
       body: FutureBuilder<OrderDetail>(
         future: orderFuture,
         builder: (context, snapshot) {
@@ -164,9 +182,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           final paymentAllowed = canSubmitPayment(order);
           applyPaymentDefaults(order);
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
+          return RefreshIndicator(
+            onRefresh: refreshOrder,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -306,7 +326,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   ),
                 ),
               ],
-            ],
+              ],
+            ),
           );
         },
       ),
