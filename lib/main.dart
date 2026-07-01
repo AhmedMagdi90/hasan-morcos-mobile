@@ -64,6 +64,15 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  void logout() {
+    setState(() {
+      customerSession = null;
+      selectedBranch = null;
+      cartItems.clear();
+      lastOrderId = null;
+    });
+  }
+
   void addToCart(Product product) {
     setState(() {
       final existingIndex = cartItems.indexWhere((item) => item.product.variantId == product.variantId);
@@ -137,6 +146,7 @@ class _AppShellState extends State<AppShell> {
       return BranchSelectionScreen(
         apiClient: apiClient,
         onBranchSelected: selectBranch,
+        onLogout: logout,
       );
     }
 
@@ -148,6 +158,7 @@ class _AppShellState extends State<AppShell> {
       lastOrderId: lastOrderId,
       customerSession: customerSession!,
       onBranchChange: () => setState(() => selectedBranch = null),
+      onLogout: logout,
       onAddToCart: addToCart,
       onOpenCart: openCart,
     );

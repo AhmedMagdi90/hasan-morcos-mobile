@@ -37,6 +37,8 @@ class _CartScreenState extends State<CartScreen> {
 
   double get cartTotal => widget.cartItems.fold(0, (total, item) => total + item.lineTotal);
 
+  int get cartCount => widget.cartItems.fold(0, (count, item) => count + item.quantity);
+
   @override
   void dispose() {
     nameController.dispose();
@@ -46,6 +48,11 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> submitOrder() async {
+    if (widget.cartItems.isEmpty) {
+      showMessage('Cart is empty.');
+      return;
+    }
+
     final requiresGuestData = widget.customerSession == null;
 
     if (requiresGuestData && (nameController.text.trim().isEmpty || phoneController.text.trim().isEmpty)) {
@@ -53,8 +60,8 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
 
-    if (widget.cartItems.isEmpty) {
-      showMessage('Cart is empty.');
+    if (addressController.text.trim().isEmpty) {
+      showMessage('Shipping address is required.');
       return;
     }
 
@@ -79,6 +86,40 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
+  Future<void> confirmClearCart() async {
+    if (widget.cartItems.isEmpty) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Clear cart?'),
+        content: const Text('This removes all products from the current cart.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      for (final item in List<CartItem>.from(widget.cartItems)) {
+        widget.onQuantityChanged(item, 0);
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -88,10 +129,78 @@ class _CartScreenState extends State<CartScreen> {
     setState(() {});
   }
 
+  Widget buildCartItem(CartItem item) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.product.displayName,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Remove item',
+                  onPressed: () => changeQuantity(item, 0),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('${item.product.price.toStringAsFixed(2)} EGP each'),
+            Text('Available stock: ${item.product.availableQuantity}'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                IconButton.outlined(
+                  onPressed: () => changeQuantity(item, item.quantity - 1),
+                  icon: const Icon(Icons.remove),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    item.quantity.toString(),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton.outlined(
+                  onPressed: item.quantity < item.product.availableQuantity
+                      ? () => changeQuantity(item, item.quantity + 1)
+                      : null,
+                  icon: const Icon(Icons.add),
+                ),
+                const Spacer(),
+                Text(
+                  '${item.lineTotal.toStringAsFixed(2)} EGP',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Cart')),
+      appBar: AppBar(
+        title: const Text('Cart'),
+        actions: [
+          IconButton(
+            tooltip: 'Clear cart',
+            onPressed: widget.cartItems.isEmpty ? null : confirmClearCart,
+            icon: const Icon(Icons.remove_shopping_cart_outlined),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -103,34 +212,14 @@ class _CartScreenState extends State<CartScreen> {
               ),
             )
           else
-            ...widget.cartItems.map((item) {
-              return Card(
-                child: ListTile(
-                  title: Text(item.product.displayName),
-                  subtitle: Text('${item.product.price.toStringAsFixed(2)} EGP - ${item.lineTotal.toStringAsFixed(2)} EGP'),
-                  trailing: SizedBox(
-                    width: 132,
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: () => changeQuantity(item, item.quantity - 1),
-                          icon: const Icon(Icons.remove),
-                        ),
-                        Text(item.quantity.toString()),
-                        IconButton(
-                          onPressed: item.quantity < item.product.availableQuantity ? () => changeQuantity(item, item.quantity + 1) : null,
-                          icon: const Icon(Icons.add),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
+            ...widget.cartItems.map(buildCartItem),
           const SizedBox(height: 16),
-          Text(
-            'Total: ${cartTotal.toStringAsFixed(2)} EGP',
-            style: Theme.of(context).textTheme.titleLarge,
+          Card(
+            child: ListTile(
+              title: Text('Total: ${cartTotal.toStringAsFixed(2)} EGP'),
+              subtitle: Text('$cartCount items from ${widget.branch.displayName}'),
+              leading: const Icon(Icons.receipt_long),
+            ),
           ),
           const SizedBox(height: 24),
           if (widget.customerSession == null) ...[
@@ -157,13 +246,16 @@ class _CartScreenState extends State<CartScreen> {
           ],
           TextField(
             controller: addressController,
-            decoration: const InputDecoration(labelText: 'Shipping address'),
+            decoration: const InputDecoration(
+              labelText: 'Shipping address',
+              helperText: 'Required for delivery and staff follow-up.',
+            ),
             minLines: 2,
             maxLines: 3,
           ),
           const SizedBox(height: 24),
           FilledButton(
-            onPressed: isSubmitting ? null : submitOrder,
+            onPressed: isSubmitting || widget.cartItems.isEmpty ? null : submitOrder,
             child: Text(isSubmitting ? 'Creating...' : 'Create Reservation Order'),
           ),
         ],
@@ -171,4 +263,3 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 }
-

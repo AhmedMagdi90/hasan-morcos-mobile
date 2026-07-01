@@ -17,6 +17,7 @@ class ProductListScreen extends StatefulWidget {
     required this.cartTotal,
     required this.customerSession,
     required this.onBranchChange,
+    required this.onLogout,
     required this.onAddToCart,
     required this.onOpenCart,
     this.lastOrderId,
@@ -30,6 +31,7 @@ class ProductListScreen extends StatefulWidget {
   final CustomerSession customerSession;
   final int? lastOrderId;
   final VoidCallback onBranchChange;
+  final VoidCallback onLogout;
   final ValueChanged<Product> onAddToCart;
   final VoidCallback onOpenCart;
 
@@ -57,6 +59,24 @@ class _ProductListScreenState extends State<ProductListScreen> {
     setState(() {
       productsFuture = widget.apiClient.fetchProducts(widget.branch.id, query: searchController.text);
     });
+  }
+
+  Future<void> refreshProducts() async {
+    final nextFuture = widget.apiClient.fetchProducts(widget.branch.id, query: searchController.text);
+
+    setState(() {
+      productsFuture = nextFuture;
+    });
+
+    try {
+      await nextFuture;
+    } catch (_) {
+    }
+  }
+
+  void clearSearch() {
+    searchController.clear();
+    search();
   }
 
   void openOrderHistory() {
@@ -92,12 +112,43 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
+  Future<void> confirmSwitchCustomer() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Switch customer?'),
+        content: const Text(
+          'This clears the current cart and returns to customer login.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Switch'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      widget.onLogout();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.branch.displayName),
         actions: [
+          IconButton(
+            tooltip: 'Refresh products',
+            icon: const Icon(Icons.refresh),
+            onPressed: refreshProducts,
+          ),
           IconButton(
             tooltip: 'Notifications',
             icon: const Icon(Icons.notifications),
@@ -112,6 +163,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
             tooltip: 'Change branch',
             icon: const Icon(Icons.storefront),
             onPressed: widget.onBranchChange,
+          ),
+          IconButton(
+            tooltip: 'Switch customer',
+            icon: const Icon(Icons.logout),
+            onPressed: confirmSwitchCustomer,
           ),
           IconButton(
             tooltip: 'Cart',
@@ -141,11 +197,24 @@ class _ProductListScreenState extends State<ProductListScreen> {
               controller: searchController,
               decoration: InputDecoration(
                 labelText: 'Search product, SKU, barcode',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: search,
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (searchController.text.trim().isNotEmpty)
+                      IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.clear),
+                        onPressed: clearSearch,
+                      ),
+                    IconButton(
+                      tooltip: 'Search',
+                      icon: const Icon(Icons.search),
+                      onPressed: search,
+                    ),
+                  ],
                 ),
               ),
+              onChanged: (_) => setState(() {}),
               onSubmitted: (_) => search(),
             ),
           ),
@@ -158,43 +227,72 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text('Cannot load products: ${snapshot.error}'));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Cannot load products: ${snapshot.error}'),
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                            onPressed: refreshProducts,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
                 }
 
                 final products = snapshot.data ?? [];
 
                 if (products.isEmpty) {
-                  return const Center(child: Text('No products available.'));
+                  return RefreshIndicator(
+                    onRefresh: refreshProducts,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 160),
+                        Center(child: Text('No products available.')),
+                      ],
+                    ),
+                  );
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                  itemBuilder: (context, index) {
-                    final product = products[index];
+                return RefreshIndicator(
+                  onRefresh: refreshProducts,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                    itemBuilder: (context, index) {
+                      final product = products[index];
 
-                    return Card(
-                      child: ListTile(
-                        leading: ProductImage(imagePath: product.image),
-                        title: Text(product.displayName),
-                        subtitle: Text('${product.variantSku} - Stock ${product.availableQuantity}'),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text('${product.price.toStringAsFixed(2)} EGP'),
-                            const SizedBox(height: 4),
-                            FilledButton(
-                              onPressed: product.availableQuantity > 0 ? () => widget.onAddToCart(product) : null,
-                              child: const Text('Add'),
-                            ),
-                          ],
+                      return Card(
+                        child: ListTile(
+                          leading: ProductImage(imagePath: product.image),
+                          title: Text(product.displayName),
+                          subtitle: Text('${product.variantSku} - Stock ${product.availableQuantity}'),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('${product.price.toStringAsFixed(2)} EGP'),
+                              const SizedBox(height: 4),
+                              FilledButton(
+                                onPressed: product.availableQuantity > 0 ? () => widget.onAddToCart(product) : null,
+                                child: const Text('Add'),
+                              ),
+                            ],
+                          ),
+                          onTap: () => openProductDetail(product),
                         ),
-                        onTap: () => openProductDetail(product),
-                      ),
-                    );
-                  },
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemCount: products.length,
+                      );
+                    },
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemCount: products.length,
+                  ),
                 );
               },
             ),

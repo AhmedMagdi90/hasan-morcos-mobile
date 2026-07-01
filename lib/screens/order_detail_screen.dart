@@ -46,12 +46,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     super.dispose();
   }
 
-  Future<void> submitPayment() async {
+  Future<void> submitPayment(OrderDetail currentOrder) async {
     final amount = double.tryParse(paidAmountController.text.trim()) ?? 0;
     final reference = referenceController.text.trim();
 
     if (amount <= 0 || reference.isEmpty) {
       showMessage('Paid amount and payment reference are required.');
+      return;
+    }
+
+    if (amount > currentOrder.remainingAmount) {
+      showMessage(
+        'Paid amount cannot exceed ${currentOrder.remainingAmount.toStringAsFixed(2)} EGP remaining.',
+      );
       return;
     }
 
@@ -66,14 +73,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         paymentProofBase64: proofBase64,
         paymentProofFilename: proofFilename,
       );
+
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
         orderFuture = Future.value(order);
         proofBase64 = null;
         proofFilename = null;
+        paidAmountController.clear();
+        referenceController.clear();
+        amountPrefilled = false;
       });
       showMessage('Payment reference submitted.');
     } catch (error) {
-      showMessage(error.toString());
+      if (mounted) {
+        showMessage(error.toString());
+      }
     } finally {
       if (mounted) {
         setState(() => isSubmitting = false);
@@ -313,7 +330,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: isSubmitting ? null : submitPayment,
+                  onPressed: isSubmitting ? null : () => submitPayment(order),
                   child: Text(isSubmitting ? 'Submitting...' : 'Submit Payment'),
                 ),
                 const SizedBox(height: 12),
